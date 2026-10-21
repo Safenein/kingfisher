@@ -47,6 +47,8 @@
 //! git:
 //!   clone_dir: ./clones
 //!   keep_clones: false
+//! logging:
+//!   format: json
 //! ```
 //!
 //! This module parses configuration. The binary's private `app::config` module
@@ -63,6 +65,7 @@ use crate::alerts::{AlertDetail, AlertFindingFilter, AlertFormat, AlertOn};
 use crate::cli::commands::output::ReportOutputFormat;
 use crate::cli::commands::scan::{ConfidenceLevel, ValidationFilter};
 use crate::cli::global::TlsMode;
+use crate::logging::LogFormat;
 
 /// Conventional file name when users save a project-local config. The path
 /// must still be passed explicitly via `--config`; nothing in the binary
@@ -90,6 +93,8 @@ pub struct KingfisherConfig {
     pub global: GlobalConfig,
     #[serde(default)]
     pub git: GitConfig,
+    #[serde(default)]
+    pub logging: LoggingConfig,
 }
 
 // ----------------------------------------------------------------------------
@@ -278,6 +283,16 @@ pub struct GlobalConfig {
     #[serde(default)]
     pub endpoints: Vec<String>,
     pub endpoint_config: Option<PathBuf>,
+}
+
+// ----------------------------------------------------------------------------
+// logging: diagnostic log output, mirrors `--log-format` / `--log-template`.
+// ----------------------------------------------------------------------------
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LoggingConfig {
+    pub format: Option<LogFormat>,
+    pub template: Option<String>,
 }
 
 // ----------------------------------------------------------------------------

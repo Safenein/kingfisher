@@ -21,6 +21,7 @@ use tracing_subscriber::{
     Layer, Registry, filter::Targets, fmt, layer::SubscriberExt, util::SubscriberInitExt,
 };
 
+use crate::cli::config::LoggingConfig;
 pub use template::TemplateFormat;
 
 /// Output format for diagnostic logs written to stderr.
@@ -89,7 +90,9 @@ impl LogSettings {
             (None, None) => Ok(LogFormat::Text),
             (None, Some(_)) => Ok(LogFormat::Template),
             (Some(LogFormat::Template), None) => {
-                bail!("log format `template` requires a pattern (--log-template)")
+                bail!(
+                    "log format `template` requires a pattern (--log-template or logging.template)"
+                )
             }
             (Some(LogFormat::Template), Some(_)) => Ok(LogFormat::Template),
             (Some(format), None) => Ok(format),
@@ -141,6 +144,24 @@ impl LogSettings {
             }
         };
         Ok(layer)
+    }
+}
+
+/// Merge CLI and config choices. Format and template travel together: any CLI
+/// choice replaces the config's pair, so `--log-format json` is never combined
+/// with a configured template. The one exception is `--log-format template`
+/// alone, which reuses the configured template.
+pub fn resolve_choice(
+    cli_format: Option<LogFormat>,
+    cli_template: Option<String>,
+    config: Option<&LoggingConfig>,
+) -> (Option<LogFormat>, Option<String>) {
+    match (config, cli_format, cli_template) {
+        (Some(cfg), None, None) => (cfg.format, cfg.template.clone()),
+        (Some(cfg), Some(LogFormat::Template), None) => {
+            (Some(LogFormat::Template), cfg.template.clone())
+        }
+        (_, format, template) => (format, template),
     }
 }
 
@@ -222,5 +243,49 @@ mod tests {
         let err =
             settings(None, Some("{nope}")).layer::<Registry>(LogFormat::Template).err().unwrap();
         assert!(format!("{err:#}").contains("nope"));
+    }
+
+    #[test]
+    fn logging_section_parses_and_rejects_unknown_keys() {
+        let cfg = crate::cli::config::parse_str("logging:\n  format: json\n").unwrap();
+        assert_eq!(cfg.logging.format, Some(LogFormat::Json));
+        let cfg = crate::cli::config::parse_str("logging:\n  template: '{message}'\n").unwrap();
+        assert_eq!(cfg.logging.template.as_deref(), Some("{message}"));
+        assert!(crate::cli::config::parse_str("logging:\n  colour: red\n").is_err());
+        assert!(crate::cli::config::parse_str("logging:\n  format: xml\n").is_err());
+    }
+
+    #[test]
+    fn cli_choice_replaces_config_pair() {
+        let cfg = LoggingConfig { format: Some(LogFormat::Template), template: Some("{x}".into()) };
+        assert_eq!(
+            resolve_choice(None, None, Some(&cfg)),
+            (Some(LogFormat::Template), Some("{x}".into()))
+        );
+        assert_eq!(
+            resolve_choice(Some(LogFormat::Json), None, Some(&cfg)),
+            (Some(LogFormat::Json), None)
+        );
+        assert_eq!(
+            resolve_choice(None, Some("{message}".into()), Some(&cfg)),
+            (None, Some("{message}".into()))
+        );
+        assert_eq!(
+            resolve_choice(Some(LogFormat::Json), None, None),
+            (Some(LogFormat::Json), None)
+        );
+    }
+
+    #[test]
+    fn cli_template_format_reuses_config_pattern() {
+        let cfg = LoggingConfig { format: Some(LogFormat::Json), template: Some("{x}".into()) };
+        assert_eq!(
+            resolve_choice(Some(LogFormat::Template), None, Some(&cfg)),
+            (Some(LogFormat::Template), Some("{x}".into()))
+        );
+        assert_eq!(
+            resolve_choice(Some(LogFormat::Template), None, None),
+            (Some(LogFormat::Template), None)
+        );
     }
 }

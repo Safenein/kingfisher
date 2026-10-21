@@ -345,8 +345,12 @@ fn reexec_with_new_binary() -> std::io::Result<()> {
     }
 }
 
-/// Install the global logger in the format selected by `--log-format`/`--log-template`.
-fn setup_logging(global_args: &GlobalArgs) -> Result<()> {
+/// Install the global logger. `--log-format`/`--log-template` win over the
+/// project config's `logging:` section.
+fn setup_logging(
+    global_args: &GlobalArgs,
+    config: Option<&kingfisher::cli::config::KingfisherConfig>,
+) -> Result<()> {
     // Determine log level based on global verbosity
     let (level, all_targets) = if global_args.quiet {
         (LevelFilter::ERROR, false)
@@ -360,11 +364,16 @@ fn setup_logging(global_args: &GlobalArgs) -> Result<()> {
         let all_targets = global_args.verbose > 2; // Enable all targets for `-vvv` or more
         (level, all_targets)
     };
+    let (format, template) = kingfisher::logging::resolve_choice(
+        global_args.logging.format,
+        global_args.logging.template.clone(),
+        config.map(|cfg| &cfg.logging),
+    );
     kingfisher::logging::init(&kingfisher::logging::LogSettings {
         level,
         all_targets,
-        format: global_args.logging.format,
-        template: global_args.logging.template.clone(),
+        format,
+        template,
     })
 }
 
@@ -614,7 +623,21 @@ pub fn determine_exit_code(datastore: &Arc<Mutex<findings_store::FindingsStore>>
 }
 
 async fn async_main(args: CommandLineArgs, matches: clap::ArgMatches) -> Result<AsyncMainOutcome> {
-    setup_logging(&args.global_args)?;
+    // Load the project config before the logger so its `logging:` section
+    // applies to every command from the first log line. Only a scan consumes
+    // the rest of the file, so a load error stays fatal there (at the same
+    // point as before) and is only a warning for other commands.
+    let mut loaded_config = Some(load_project_config(args.global_args.config.as_deref()));
+    let logging_config = match &loaded_config {
+        Some(Ok(cfg)) => cfg.as_ref(),
+        _ => None,
+    };
+    setup_logging(&args.global_args, logging_config)?;
+    if !matches!(args.command, Command::Scan(_))
+        && let Some(Err(error)) = &loaded_config
+    {
+        warn!("ignoring logging settings from config: {error:#}");
+    }
     let global_args = args.global_args.clone();
 
     match args.command {
@@ -745,7 +768,12 @@ async fn async_main(args: CommandLineArgs, matches: clap::ArgMatches) -> Result<
                         // Load only the explicitly selected config. Scalars respect CLI/env
                         // precedence; list values are additive, except that configured rules
                         // replace Clap's synthetic `all` default.
-                        let loaded_config = load_project_config(global_args.config.as_deref())?;
+                        let loaded_config = loaded_config.take().transpose()?.flatten();
+                        if let Some(path) = global_args.config.as_deref()
+                            && loaded_config.is_some()
+                        {
+                            info!("loaded config from {}", path.display());
+                        }
                         let scan_matches = matches.subcommand_matches("scan");
                         let mut effective_global_args = global_args.clone();
                         if let Some(cfg) = &loaded_config {

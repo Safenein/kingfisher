@@ -631,13 +631,13 @@ See [`docs/CONFIG.md`](CONFIG.md) for the full schema and precedence rules.
 ### Log output format
 
 Diagnostic logs go to stderr; scan reports are unaffected. Pick the format with the global
-`--log-format` flag:
+`--log-format` flag, or with `logging.format` in `kingfisher.yaml`:
 
 | Format | Output |
 |---|---|
 | `text` | Human-readable lines (default) |
 | `json` | One JSON object per line (`timestamp`, `level`, `message`, `target`, fields) |
-| `template` | Custom pattern from `--log-template` |
+| `template` | Custom pattern from `--log-template` or `logging.template` |
 
 ```bash
 # Structured logs for a log collector; the report still goes to its own file

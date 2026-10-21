@@ -2,7 +2,6 @@
 
 use anyhow::{Context, Result};
 use kingfisher::cli::{self, GlobalArgs};
-use tracing::info;
 
 /// Resolve and read a `kingfisher.yaml` project config.
 ///
@@ -21,7 +20,6 @@ pub(crate) fn load_project_config(
         String::from_utf8(bytes).with_context(|| format!("config {} is not UTF-8", p.display()))?;
     let cfg = kingfisher::cli::config::parse_str(&yaml)
         .with_context(|| format!("parse config {}", p.display()))?;
-    info!("loaded config from {}", p.display());
     Ok(Some(cfg))
 }
 

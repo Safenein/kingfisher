@@ -323,6 +323,14 @@ pub(crate) fn build_config_yaml(
     }
     cfg.global = g;
 
+    // ---------- logging -------------------------------------------------
+    if user_set(sub_matches, "log_format") {
+        cfg.logging.format = global_args.logging.format;
+    }
+    if user_set(sub_matches, "log_template") {
+        cfg.logging.template = global_args.logging.template.clone();
+    }
+
     // ---------- git ----------------------------------------------------
     let mut git = GitConfig::default();
     if user_set(sub_matches, "git_clone_dir")

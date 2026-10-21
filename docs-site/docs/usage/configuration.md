@@ -155,9 +155,10 @@ into permitting `http://` for a remote host.
   worker pool. To size both pools explicitly, pass `--jobs N` on the CLI;
   a CLI value takes precedence over `scan.jobs`. This only affects
   parallelism, never correctness.
-- **Subcommand scope.** Project config only applies to `kingfisher scan`.
+- **Subcommand scope.** Project config only applies to `kingfisher scan`, except the
+  `logging:` section, which every command honours when `--config` is passed.
   `validate`, `revoke`, `blast-radius`, `access-map`, `view`, and `rules` commands ignore
-  `kingfisher.yaml`; pass their flags on the CLI directly.
+  the rest of `kingfisher.yaml`; pass their flags on the CLI directly.
 
 ## What is *not* config-overridable
 
@@ -278,7 +279,18 @@ git:
   include_contributors: false   # bool                           (--include-contributors)
   github_api_url: null          # URL  GHE / self-hosted GH       (--github-api-url)
   gitlab_api_url: null          # URL  self-hosted GitLab         (--gitlab-api-url)
+
+logging:
+  format: text                  # text | json | template         (--log-format)
+  template: null                # pattern, implies template      (--log-template)
 ```
+
+`logging.format` and `logging.template` are a pair: passing `--log-format` or `--log-template`
+on the CLI replaces both config values, except that `--log-format template` alone reuses
+`logging.template`. Unlike the rest of the file, the `logging:` section applies to every
+command. A non-scan command warns and keeps its CLI logging flags when the config file cannot
+be loaded. See [Log output format](../usage/basic-scanning.md#log-output-format) for the formats and template
+placeholders.
 
 `scan.only_valid: true` is a compatibility alias for `validation_filter: active`. They are mutually
 exclusive; configure one or the other. Use `validation_filter: actionable` to retain active
