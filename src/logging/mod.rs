@@ -11,6 +11,7 @@ mod fields;
 mod template;
 
 use std::io::IsTerminal;
+use std::sync::OnceLock;
 
 use anyhow::{Result, bail};
 use clap::{Args, ValueEnum};
@@ -165,12 +166,26 @@ pub fn resolve_choice(
     }
 }
 
+static ACTIVE_FORMAT: OnceLock<LogFormat> = OnceLock::new();
+
 /// Install the global subscriber for `settings`.
 pub fn init(settings: &LogSettings) -> Result<()> {
     let format = settings.effective_format()?;
     let layer = settings.layer::<Registry>(format)?;
     tracing_subscriber::registry().with(layer).with(settings.filter()).init();
+    let _ = ACTIVE_FORMAT.set(format);
     Ok(())
+}
+
+/// The format installed by [`init`], or `None` before logging is set up.
+pub fn active_format() -> Option<LogFormat> {
+    ACTIVE_FORMAT.get().copied()
+}
+
+/// Whether a fatal error should be reported as a log event so it matches the
+/// selected format, instead of the default `Error: …` line on stderr.
+pub fn reports_errors_as_events() -> bool {
+    matches!(active_format(), Some(LogFormat::Json | LogFormat::Template))
 }
 
 #[cfg(test)]

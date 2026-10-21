@@ -639,6 +639,10 @@ Diagnostic logs go to stderr; scan reports are unaffected. Pick the format with 
 | `json` | One JSON object per line (`timestamp`, `level`, `message`, `target`, fields) |
 | `template` | Custom pattern from `--log-template` or `logging.template` |
 
+With `json` or `template`, a fatal error is also written as an `ERROR` event in that format
+instead of the plain `Error: …` line, so log processors can parse it. Command-line parsing
+errors, which occur before logging starts, and panics are still printed as plain text.
+
 ```bash
 # Structured logs for a log collector; the report still goes to its own file
 kingfisher scan . --log-format json --format json --output report.json

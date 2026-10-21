@@ -172,13 +172,18 @@ fn main() -> anyhow::Result<std::process::ExitCode> {
 
     let handler = builder.spawn(move || run(*args, matches)).expect("failed to spawn main thread");
     let result = handler.join().unwrap_or_else(|e| std::panic::resume_unwind(e));
-    if let Err(error) = &result
-        && error.is::<kingfisher::scanner::NoScanInputsError>()
-    {
+    let Err(error) = &result else { return result };
+    let code = if error.is::<kingfisher::scanner::NoScanInputsError>() { 3 } else { 1 };
+    if kingfisher::logging::reports_errors_as_events() {
+        // Keep stderr in the selected log format so log processors can parse
+        // the fatal error like any other event.
+        error!("{error:#}");
+    } else if code == 3 {
         eprintln!("Error: {error:?}");
-        return Ok(std::process::ExitCode::from(3));
+    } else {
+        return result;
     }
-    result
+    Ok(std::process::ExitCode::from(code))
 }
 
 /// Outcome of `async_main`. Command exit codes must reach the OS main thread
