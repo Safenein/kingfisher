@@ -628,6 +628,29 @@ kingfisher scan . --config ./kingfisher.yaml --confidence low
 
 See [`docs/CONFIG.md`](CONFIG.md) for the full schema and precedence rules.
 
+### Log output format
+
+Diagnostic logs go to stderr; scan reports are unaffected. Pick the format with the global
+`--log-format` flag:
+
+| Format | Output |
+|---|---|
+| `text` | Human-readable lines (default) |
+| `json` | One JSON object per line (`timestamp`, `level`, `message`, `target`, fields) |
+| `template` | Custom pattern from `--log-template` |
+
+```bash
+# Structured logs for a log collector; the report still goes to its own file
+kingfisher scan . --log-format json --format json --output report.json
+
+# Custom pattern (implies --log-format template)
+kingfisher scan . --log-template '{time} {level} {target}: {message} {fields}'
+```
+
+Template placeholders: `{time}` (RFC 3339 UTC), `{level}` (coloured on a TTY), `{target}`,
+`{message}`, `{fields}` (remaining fields as `key=value`), `{field:NAME}`, `{span}`, `{file}`,
+`{line}`. Use `{{` and `}}` for literal braces. Unknown placeholders are rejected at startup.
+
 ### Scan changes in CI pipelines
 
 ### Changes in the last N hours

@@ -410,6 +410,7 @@ impl TestContext {
             endpoint: Vec::new(),
             endpoint_config: None,
             config: None,
+            logging: Default::default(),
         };
 
         let datastore = Arc::new(Mutex::new(FindingsStore::new(clone_dir)));

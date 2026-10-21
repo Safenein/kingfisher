@@ -102,9 +102,6 @@ use tempfile::TempDir;
 use tokio::runtime::Builder;
 use tracing::{error, info, warn};
 use tracing_core::metadata::LevelFilter;
-use tracing_subscriber::{
-    self, fmt, prelude::__tracing_subscriber_SubscriberExt, registry, util::SubscriberInitExt,
-};
 
 use crate::cli::commands::{
     scan::{ListRepositoriesCommand, ScanOperation},
@@ -348,7 +345,8 @@ fn reexec_with_new_binary() -> std::io::Result<()> {
     }
 }
 
-fn setup_logging(global_args: &GlobalArgs) {
+/// Install the global logger in the format selected by `--log-format`/`--log-template`.
+fn setup_logging(global_args: &GlobalArgs) -> Result<()> {
     // Determine log level based on global verbosity
     let (level, all_targets) = if global_args.quiet {
         (LevelFilter::ERROR, false)
@@ -362,21 +360,12 @@ fn setup_logging(global_args: &GlobalArgs) {
         let all_targets = global_args.verbose > 2; // Enable all targets for `-vvv` or more
         (level, all_targets)
     };
-    let filter = if all_targets {
-        // Enable TRACE for all modules
-        tracing_subscriber::filter::Targets::new().with_default(LevelFilter::TRACE)
-    } else {
-        // Limit non-Kingfisher targets to errors at normal verbosity.
-        tracing_subscriber::filter::Targets::new()
-            .with_default(LevelFilter::ERROR) // Default for all modules
-            .with_target("kingfisher", level)
-    };
-    let fmt_layer = fmt::layer()
-        .with_writer(std::io::stderr)
-        .with_target(true) // Include the tracing target in each log line
-        .with_ansi(std::io::stderr().is_terminal()) // Emit ANSI colours when stderr is a TTY
-        .without_time();
-    registry().with(fmt_layer).with(filter).init();
+    kingfisher::logging::init(&kingfisher::logging::LogSettings {
+        level,
+        all_targets,
+        format: global_args.logging.format,
+        template: global_args.logging.template.clone(),
+    })
 }
 
 /// Describe the first configured scan target, in priority order, for alert payloads.
@@ -625,7 +614,7 @@ pub fn determine_exit_code(datastore: &Arc<Mutex<findings_store::FindingsStore>>
 }
 
 async fn async_main(args: CommandLineArgs, matches: clap::ArgMatches) -> Result<AsyncMainOutcome> {
-    setup_logging(&args.global_args);
+    setup_logging(&args.global_args)?;
     let global_args = args.global_args.clone();
 
     match args.command {

@@ -242,6 +242,7 @@ rules:
         endpoint: Vec::new(),
         endpoint_config: None,
         config: None,
+        logging: Default::default(),
     };
 
     // ── load rules once ─────────────────────────────────────────────

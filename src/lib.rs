@@ -55,6 +55,7 @@ pub mod jira;
 pub mod limits;
 pub mod liquid_filters;
 pub mod location;
+pub mod logging;
 pub mod matcher;
 mod object_cache;
 pub mod origin;

@@ -206,6 +206,7 @@ async fn test_redact_hashes_finding_values() -> Result<()> {
         endpoint: Vec::new(),
         endpoint_config: None,
         config: None,
+        logging: Default::default(),
     };
 
     let loaded = RuleLoader::from_rule_specifiers(&scan_args.rules).load(&scan_args)?;

@@ -14,6 +14,7 @@ use crate::cli::commands::{
     blast_radius::BlastRadiusArgs, config_command::ConfigArgs, revoke::RevokeArgs,
     rules::RulesArgs, scan::ScanCommandArgs, validate::ValidateArgs, view::ViewArgs,
 };
+use crate::logging::LogArgs;
 
 #[deny(missing_docs)]
 #[derive(Parser, Debug)]
@@ -142,6 +143,10 @@ pub struct GlobalArgs {
     #[arg(global = true, long, short)]
     pub quiet: bool,
 
+    /// Log output format flags (`--log-format`, `--log-template`)
+    #[command(flatten)]
+    pub logging: LogArgs,
+
     /// TLS certificate validation mode for secret validation requests.
     ///
     /// - strict: Full WebPKI validation (default)
@@ -207,6 +212,7 @@ impl Default for GlobalArgs {
         Self {
             verbose: 0,
             quiet: false,
+            logging: LogArgs::default(),
             tls_mode: TlsMode::Strict,
             allow_internal_ips: false,
             ignore_certs: false,
